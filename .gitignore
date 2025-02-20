@@ -1,1 +1,4 @@
 **/build/
+vtk-build/
+vtk/
+vtk-install/
