@@ -3,9 +3,7 @@ cmake_minimum_required(VERSION 3.11)
 set(CMAKE_CXX_FLAGS "-std=c++11")
 
 project(vtkdemo)
-add_executable(cubic2d cubic2d.cpp)
-add_executable(cubic3d cubic3d.cpp)
-add_executable(tetr3d tetr3d.cpp)
+add_executable(cockroach cockroach.cpp)
 
 # --- Подключаем gmsh для третьего примера, тут делайте так же, как у вас сработало в первой лабе
 
@@ -37,9 +35,7 @@ find_package(VTK REQUIRED)
 
 # Укажем библиотеки для линковки
 # ... тут только VTK
-target_link_libraries(cubic2d ${VTK_LIBRARIES})
-target_link_libraries(cubic3d ${VTK_LIBRARIES})
 
 # ... а тут ещё и gmsh
-target_link_libraries(tetr3d ${VTK_LIBRARIES})
-target_link_libraries(tetr3d ${GMSH_LIBRARIES})
+target_link_libraries(cockroach ${VTK_LIBRARIES})
+target_link_libraries(cockroach ${GMSH_LIBRARIES})

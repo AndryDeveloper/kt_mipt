@@ -7,8 +7,8 @@ int main(int argc, char **argv)
   gmsh::initialize();
   gmsh::model::add("stl_mesher");
 
-  gmsh::option::setNumber("Mesh.CharacteristicLengthMax", 0.4);
-  gmsh::option::setNumber("Mesh.CharacteristicLengthMin", 0.05);
+  gmsh::option::setNumber("Mesh.CharacteristicLengthMax", 1.);
+  // gmsh::option::setNumber("Mesh.CharacteristicLengthMin", 0.1);
 
   // Let's merge an STL mesh that we would like to remesh (from the parent
   // directory):

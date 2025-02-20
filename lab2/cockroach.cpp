@@ -14,6 +14,53 @@
 
 using namespace std;
 
+
+struct Box {
+    double x_min, x_max, z_min, z_max, y_min, y_max;
+    Box(double x_min, double x_max, double z_min, double z_max, double y_min, double y_max)
+        : x_min(x_min), x_max(x_max), z_min(z_min), z_max(z_max), y_min(y_min), y_max(y_max) {}
+};
+
+struct Pair {
+    double x; 
+    double z;
+};
+
+Box get_box(int idx) {
+    switch (idx) {
+        case 0: return Box(12.8, 32.7, 31.5, 42, 0.323, 1.63);
+        case 1: return Box(36.5, 40.2, 30.3, 44.5, 0.323, 1.63);
+        case 2: return Box(46.4, 51.9, 28.9, 34.3, 0.323, 1.63);
+        case 3: return Box(49.3, 68.2, 26, 42, 0.323, 1.63);
+        case 4: return Box(12.8, 32.7, 6., 16.1, 0.323, 1.63);
+        case 5: return Box(36.5, 40.2, 2.0, 17.2, 0.323, 1.63);
+        case 6: return Box(46.4, 51.9, 13.2, 18.8, 0.323, 1.63);
+        case 7: return Box(49.3, 68.2, 6, 21.9, 0.323, 1.63);
+        default: return Box(0, 0, 0, 0, 0, 0); // Значение по умолчанию
+    }
+}
+
+bool is_inside_box(int box_id, double pointX, double pointY, double pointZ) {
+    Box box = get_box(box_id);
+    return (pointX >= box.x_min && pointX <= box.x_max &&
+            pointZ >= box.z_min && pointZ <= box.z_max &&
+            pointY >= box.y_min && pointY <= box.y_max);
+}
+
+Pair get_center(Box box) {
+    const double x_0 = 31.5;
+    const double z_0 = 24.5;
+
+    Pair corner1 = {box.x_min, box.z_min}; // (x_min, z_min)
+    Pair corner2 = {box.x_max, box.z_max}; // (x_max, z_max)
+
+    double distance1 = std::sqrt(std::pow(corner1.x - x_0, 2) + std::pow(corner1.z - z_0, 2));
+    double distance2 = std::sqrt(std::pow(corner2.x - x_0, 2) + std::pow(corner2.z - z_0, 2));
+
+    return (distance1 < distance2) ? corner1 : corner2;
+}
+
+
 // Класс расчётной точки
 class CalcNode
 {
@@ -72,6 +119,7 @@ protected:
     // 3D-сетка из расчётных точек
     vector<CalcNode> nodes;
     vector<Element> elements;
+    vector<int> laps[8];
 
 public:
     // Конструктор сетки из заданного stl-файла
@@ -85,9 +133,35 @@ public:
             double pointY = nodesCoords[i*3 + 1];
             double pointZ = nodesCoords[i*3 + 2];
             // Модельная скалярная величина распределена как-то вот так
-            double smth = pow(pointX, 2) + pow(pointY, 2) + pow(pointZ, 2);
-            nodes[i] = CalcNode(pointX, pointY, pointZ, smth, 0.0, 0.0, 0.0);
+            double smth = pow(pointX, 2)*sin(pointX) + pow(pointY, 2)*sin(pointY) + pow(pointZ, 2)*sin(pointZ);
+
+            bool p = false;
+            for (int j = 0; j < 8; j++){
+                bool q = is_inside_box(j, pointX, pointY, pointZ);
+                for (int k = 0; k < 8; k++){
+                    if (k != j && is_inside_box(k, pointX, pointY, pointZ)){
+                        q = false;
+                    }
+                }
+
+                if (q){
+                    laps[j].push_back(i);
+                    nodes[i] = CalcNode(pointX, pointY, pointZ, smth, 50.0, 0.0, 0.0);
+                    p = true;
+                }
+            }
+            if (!p){
+                nodes[i] = CalcNode(pointX, pointY, pointZ, smth, 50.0, 0.0, 0.0);
+            }
         }
+        std::cout << laps[0].size() << ' ' << 
+                    laps[1].size() << ' ' <<
+                    laps[2].size() << ' ' <<
+                    laps[3].size() << ' ' <<
+                    laps[4].size() << ' ' <<
+                    laps[5].size() << ' ' <<
+                    laps[6].size() << ' ' <<
+                    laps[7].size() << ' ' << std::endl;
 
         // Пройдём по элементам в модели gmsh
         elements.resize(tetrsPoints.size() / 4);
@@ -100,7 +174,35 @@ public:
     }
 
     // Метод отвечает за выполнение для всей сетки шага по времени величиной tau
-    void doTimeStep(double tau) {
+    void doTimeStep(double tau, double step) {
+        if (step < 60){
+            for (int j = 0; j < 8; j++){
+                Box box = get_box(j);
+                Pair cnt = get_center(box);
+    
+                for (int idx : laps[j]){
+                    nodes[idx].vx = -(nodes[idx].z - cnt.z) * 10 * cos(step / 3.) + 50;
+                    nodes[idx].vz = (nodes[idx].x - cnt.x - tau*50*step) * 10 * cos(step / 3.);
+                }
+            }
+            for(unsigned int i = 0; i < nodes.size(); i++) {
+                nodes[i].smth = pow(nodes[i].x, 2)*sin(nodes[i].x) + pow(nodes[i].y, 2)*sin(nodes[i].y) + pow(nodes[i].z, 2)*sin(nodes[i].z);
+            }
+        }
+        else {
+            double x_0 = 31.5 + tau*50*step;
+            double z_0 = 24.5;
+            
+            for(unsigned int i = 0; i < nodes.size(); i++) {
+
+                nodes[i].vx += (nodes[i].x - x_0)*abs(nodes[i].x - x_0);
+                nodes[i].vy += (nodes[i].y - 0.5)*abs(nodes[i].x - 0.5);
+                nodes[i].vz += (nodes[i].z - z_0)*abs(nodes[i].x - z_0);
+            }
+            for(unsigned int i = 0; i < nodes.size(); i++) {
+                nodes[i].smth *= ((nodes[i].x - x_0)*(nodes[i].x - x_0) + (nodes[i].y - 0.5)*(nodes[i].y - 0.5) + (nodes[i].z - z_0)*(nodes[i].z - z_0));
+            }
+        }
         // По сути метод просто двигает все точки
         for(unsigned int i = 0; i < nodes.size(); i++) {
             nodes[i].move(tau);
@@ -154,7 +256,7 @@ public:
         }
 
         // Создаём снапшот в файле с заданным именем
-        string fileName = "tetr3d-step-" + std::to_string(snap_number) + ".vtu";
+        string fileName = "output/cockroach-step-" + std::to_string(snap_number) + ".vtu";
         vtkSmartPointer<vtkXMLUnstructuredGridWriter> writer = vtkSmartPointer<vtkXMLUnstructuredGridWriter>::New();
         writer->SetFileName(fileName.c_str());
         writer->SetInputData(unstructuredGrid);
@@ -167,7 +269,7 @@ int main()
     // Шаг точек по пространству
     double h = 4.0;
     // Шаг по времени
-    double tau = 0.01;
+    double tau = 0.003;
 
     const unsigned int GMSH_TETR_CODE = 4;
 
@@ -177,9 +279,11 @@ int main()
     gmsh::initialize();
     gmsh::model::add("t13");
 
+    gmsh::option::setNumber("Mesh.CharacteristicLengthMax", 1.);
+
     // Считаем STL
     try {
-        gmsh::merge("t13_data.stl"); 
+        gmsh::merge("cockroach.STL"); 
         // путь к файлу отсчитывается от точки запуска 
         // если вы собирали все в директории build как цивилизованные люди, 
         // то перейдите на уровень выше
@@ -257,6 +361,11 @@ int main()
     gmsh::finalize();
 
     mesh.snapshot(0);
+
+    for(unsigned int step = 1; step < 70; step++) {
+        mesh.doTimeStep(tau, step);
+        mesh.snapshot(step);
+    }
 
     return 0;
 }
