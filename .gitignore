@@ -4,3 +4,5 @@ vtk/
 vtk-install/
 ParaView-5.13.2-MPI-Linux-Python3.10-x86_64
 lab2/output/*
+install_ph/
+venv/
