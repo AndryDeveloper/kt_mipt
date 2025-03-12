@@ -6,3 +6,7 @@ ParaView-5.13.2-MPI-Linux-Python3.10-x86_64
 lab2/output/*
 install_ph/
 venv/
+micro/demo
+micro/models
+**/__pycache__
+micro/output
