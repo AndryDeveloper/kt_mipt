@@ -1,0 +1,27 @@
+# navier_stokes.ufl
+from ufl_legacy import (Coefficient, dx, FiniteElement, VectorElement,
+                        div, dot, grad, inner, tetrahedron,
+                        TestFunctions, TrialFunctions)
+
+# Пространство элементов (Taylor–Hood: скорость – P2, давление – P1)
+P2 = VectorElement("Lagrange", tetrahedron, 2)
+P1 = FiniteElement("Lagrange", tetrahedron, 1)
+TH = P2 * P1                                    
+
+(u, p) = TrialFunctions(TH)
+(v, q) = TestFunctions(TH)
+
+# Константы
+mu = 0.001  # Вязкость
+rho = 1.0   # Плотность
+
+# Внешняя сила
+f = Coefficient(P2)
+# Коэффициент для предыдущей итерации скорости (используется для линеаризации конвективного члена)
+u0 = Coefficient(P2)
+
+# Вариационная форма с линеаризацией конвективного члена (схема Пикара)
+a = (rho * inner(dot(u0, grad(u)), v)  # линеаризованный конвективный член
+     + mu * inner(grad(u), grad(v))
+     - div(v)*p + div(u)*q) * dx
+L = dot(f, v) * dx

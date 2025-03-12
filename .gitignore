@@ -10,3 +10,5 @@ micro/demo
 micro/models
 **/__pycache__
 micro/output
+micro/xmls
+micro/meshs
